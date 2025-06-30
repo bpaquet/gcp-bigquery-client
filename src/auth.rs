@@ -273,7 +273,7 @@ impl FileTokenAuthenticator {
 #[async_trait]
 impl Authenticator for FileTokenAuthenticator {
     async fn access_token(&self) -> Result<String, BQError> {
-        println!("Starting FileTokenAuthenticator::access_token for path: {}", self.token_path);
+        println!("Start of FileTokenAuthenticator::access_token for path: {}", self.token_path);
 
         let path = std::path::Path::new(&self.token_path);
 

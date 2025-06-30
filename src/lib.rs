@@ -101,8 +101,6 @@ pub struct Client {
 
 impl Client {
     pub async fn from_authenticator(auth: Arc<dyn Authenticator>) -> Result<Self, BQError> {
-        println!("from_authenticator");
-        println!("Creating BigQuery client");
         let client = create_http_client();
         Ok(Self {
             dataset_api: DatasetApi::new(client.clone(), Arc::clone(&auth)),

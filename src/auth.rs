@@ -273,13 +273,10 @@ impl FileTokenAuthenticator {
 #[async_trait]
 impl Authenticator for FileTokenAuthenticator {
     async fn access_token(&self) -> Result<String, BQError> {
-        println!("Start of FileTokenAuthenticator::access_token for path: {}", self.token_path);
-
         let path = std::path::Path::new(&self.token_path);
 
         // Check if file exists
         if !path.exists() {
-            println!("Token file not found: {}", path.display());
             return Err(std::io::Error::new(
                 std::io::ErrorKind::NotFound,
                 format!("Token file not found: {}", path.display()),
@@ -287,16 +284,17 @@ impl Authenticator for FileTokenAuthenticator {
         }
 
         // Read the token from file
-        let token_content = match std::fs::read_to_string(&self.token_path) {
-            Ok(content) => content,
-            Err(e) => {
-                println!("Error reading token file {}: {}", self.token_path, e);
-                return Err(e.into());
-            }
-        };
-
+        let token_content = std::fs::read_to_string(&self.token_path)?;
         let static_token = token_content.trim().to_string();
-        println!("Token read from file: {}", static_token);
+        
+        // Check if token is empty
+        if static_token.is_empty() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("Token file {} is empty", self.token_path),
+            ).into());
+        }
+        
         Ok(static_token)
     }
 }

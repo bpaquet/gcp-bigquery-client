@@ -258,3 +258,58 @@ pub(crate) async fn authorized_user_authenticator<S: AsRef<Path>>(
     let authorized_user_secret = yup_oauth2::read_authorized_user_secret(secret).await?;
     AuthorizedUserAuthenticator::from_authorized_user_secret(authorized_user_secret, scopes).await
 }
+
+#[derive(Clone)]
+pub struct FileTokenAuthenticator {
+    token_path: String,
+}
+
+impl FileTokenAuthenticator {
+    fn new(token_path: String) -> Self {
+        Self { token_path }
+    }
+}
+
+#[async_trait]
+impl Authenticator for FileTokenAuthenticator {
+    async fn access_token(&self) -> Result<String, BQError> {
+        println!("Entering FileTokenAuthenticator::access_token for path: {}", self.token_path);
+
+        let path = std::path::Path::new(&self.token_path);
+
+        // Check if file exists
+        if !path.exists() {
+            println!("Token file not found: {}", path.display());
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                format!("Token file not found: {}", path.display()),
+            ).into());
+        }
+
+        // Read the token from file
+        let token_content = match std::fs::read_to_string(&self.token_path) {
+            Ok(content) => content,
+            Err(e) => {
+                println!("Error reading token file {}: {}", self.token_path, e);
+                return Err(e.into());
+            }
+        };
+
+        let static_token = token_content.trim().to_string();
+        println!("Token read from file: {}", static_token);
+        Ok(static_token)
+    }
+}
+
+pub(crate) fn file_token_authenticator(
+    token_path: String,
+) -> Result<Arc<dyn Authenticator>, BQError> {
+    Ok(Arc::new(FileTokenAuthenticator::new(token_path)))
+}
+
+pub async fn create_file_token_authenticator<P: AsRef<Path>>(
+    token_path: P,
+) -> Result<Arc<dyn Authenticator>, BQError> {
+    let path_str = token_path.as_ref().to_string_lossy().to_string();
+    Ok(Arc::new(FileTokenAuthenticator::new(path_str)))
+}

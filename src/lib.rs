@@ -60,6 +60,31 @@ pub mod tabledata;
 const BIG_QUERY_V2_URL: &str = "https://bigquery.googleapis.com/bigquery/v2";
 const BIG_QUERY_AUTH_URL: &str = "https://www.googleapis.com/auth/bigquery";
 
+/// Create a reqwest client with proxy configuration from environment variables
+pub(crate) fn create_http_client() -> reqwest::Client {
+    let mut client_builder = reqwest::Client::builder();
+    
+    println!("Create http client");
+
+    // Check for HTTP_PROXY environment variable
+    if let Ok(http_proxy) = env::var("HTTP_PROXY").or_else(|_| env::var("http_proxy")) {
+        if let Ok(proxy) = reqwest::Proxy::http(&http_proxy) {
+            println!("Using HTTP proxy: {}", http_proxy);
+            client_builder = client_builder.proxy(proxy);
+        }
+    }
+    
+    // Check for HTTPS_PROXY environment variable
+    if let Ok(https_proxy) = env::var("HTTPS_PROXY").or_else(|_| env::var("https_proxy")) {
+        if let Ok(proxy) = reqwest::Proxy::https(&https_proxy) {
+            println!("Using HTTPS proxy: {}", https_proxy);
+            client_builder = client_builder.proxy(proxy);
+        }
+    }
+    
+    client_builder.build().unwrap_or_else(|_| reqwest::Client::new())
+}
+
 /// An asynchronous BigQuery client.
 #[derive(Clone)]
 pub struct Client {
@@ -76,7 +101,7 @@ pub struct Client {
 impl Client {
     pub async fn from_authenticator(auth: Arc<dyn Authenticator>) -> Result<Self, BQError> {
         let write_client = StorageApi::new_write_client().await?;
-        let client = reqwest::Client::new();
+        let client = create_http_client();
         Ok(Self {
             dataset_api: DatasetApi::new(client.clone(), Arc::clone(&auth)),
             table_api: TableApi::new(client.clone(), Arc::clone(&auth)),

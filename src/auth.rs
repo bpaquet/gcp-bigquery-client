@@ -95,7 +95,7 @@ pub struct WorkloadIdentityAccessToken {
 }
 
 pub(crate) async fn get_access_token_with_workload_identity() -> Result<WorkloadIdentityAccessToken, BQError> {
-    let client = reqwest::Client::new();
+    let client = crate::create_http_client();
     let resp = client
         .get("http://metadata/computeMetadata/v1/instance/service-accounts/default/token")
         .header("Metadata-Flavor", "Google")
@@ -273,7 +273,7 @@ impl FileTokenAuthenticator {
 #[async_trait]
 impl Authenticator for FileTokenAuthenticator {
     async fn access_token(&self) -> Result<String, BQError> {
-        println!("Entering FileTokenAuthenticator::access_token for path: {}", self.token_path);
+        println!("Starting FileTokenAuthenticator::access_token for path: {}", self.token_path);
 
         let path = std::path::Path::new(&self.token_path);
 
@@ -299,12 +299,6 @@ impl Authenticator for FileTokenAuthenticator {
         println!("Token read from file: {}", static_token);
         Ok(static_token)
     }
-}
-
-pub(crate) fn file_token_authenticator(
-    token_path: String,
-) -> Result<Arc<dyn Authenticator>, BQError> {
-    Ok(Arc::new(FileTokenAuthenticator::new(token_path)))
 }
 
 pub async fn create_file_token_authenticator<P: AsRef<Path>>(

@@ -64,12 +64,9 @@ const BIG_QUERY_AUTH_URL: &str = "https://www.googleapis.com/auth/bigquery";
 pub(crate) fn create_http_client() -> reqwest::Client {
     let mut client_builder = reqwest::Client::builder();
 
-    println!("Create http client");
-
     // Check for HTTP_PROXY environment variable
     if let Ok(http_proxy) = env::var("HTTP_PROXY").or_else(|_| env::var("http_proxy")) {
         if let Ok(proxy) = reqwest::Proxy::http(&http_proxy) {
-            println!("Using HTTP proxy: {}", http_proxy);
             client_builder = client_builder.proxy(proxy);
         }
     }
@@ -77,7 +74,6 @@ pub(crate) fn create_http_client() -> reqwest::Client {
     // Check for HTTPS_PROXY environment variable
     if let Ok(https_proxy) = env::var("HTTPS_PROXY").or_else(|_| env::var("https_proxy")) {
         if let Ok(proxy) = reqwest::Proxy::https(&https_proxy) {
-            println!("Using HTTPS proxy: {}", https_proxy);
             client_builder = client_builder.proxy(proxy);
         }
     }

@@ -305,3 +305,52 @@ pub async fn create_file_token_authenticator<P: AsRef<Path>>(
     let path_str = token_path.as_ref().to_string_lossy().to_string();
     Ok(Arc::new(FileTokenAuthenticator::new(path_str)))
 }
+
+#[derive(Clone)]
+pub struct ShellScriptAuthenticator {
+    script_path: String,
+}
+
+impl ShellScriptAuthenticator {
+    fn new(script_path: String) -> Self {
+        Self { script_path }
+    }
+}
+
+#[async_trait]
+impl Authenticator for ShellScriptAuthenticator {
+    async fn access_token(&self) -> Result<String, BQError> {
+        let output = std::process::Command::new("sh")
+            .arg("-c")
+            .arg(&self.script_path)
+            .output()?;
+
+        if !output.status.success() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("Shell script failed with exit code: {:?}", output.status.code()),
+            ).into());
+        }
+
+        let token = String::from_utf8(output.stdout)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?
+            .trim()
+            .to_string();
+
+        if token.is_empty() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "Shell script returned empty token",
+            ).into());
+        }
+
+        Ok(token)
+    }
+}
+
+pub async fn create_shell_script_authenticator<P: AsRef<Path>>(
+    script_path: P,
+) -> Result<Arc<dyn Authenticator>, BQError> {
+    let path_str = script_path.as_ref().to_string_lossy().to_string();
+    Ok(Arc::new(ShellScriptAuthenticator::new(path_str)))
+}

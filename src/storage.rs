@@ -494,6 +494,7 @@ pub mod test {
             let (encoded_rows, num_processed) = StorageApi::create_rows(table_descriptor, rows, max_size);
             let mut streaming = client
                 .storage_mut()
+                .await?
                 .append_rows(stream_name, encoded_rows, trace_id.clone())
                 .await?;
 

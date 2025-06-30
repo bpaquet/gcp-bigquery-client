@@ -95,12 +95,13 @@ pub struct Client {
     routine_api: RoutineApi,
     model_api: ModelApi,
     project_api: ProjectApi,
-    storage_api: StorageApi,
+    storage_api: Option<StorageApi>,
+    auth: Arc<dyn Authenticator>,
 }
 
 impl Client {
     pub async fn from_authenticator(auth: Arc<dyn Authenticator>) -> Result<Self, BQError> {
-        let write_client = StorageApi::new_write_client().await?;
+        println!("from_authenticator");
         println!("Creating BigQuery client");
         let client = create_http_client();
         Ok(Self {
@@ -111,7 +112,8 @@ impl Client {
             routine_api: RoutineApi::new(client.clone(), Arc::clone(&auth)),
             model_api: ModelApi::new(client.clone(), Arc::clone(&auth)),
             project_api: ProjectApi::new(client, Arc::clone(&auth)),
-            storage_api: StorageApi::new(write_client, auth),
+            storage_api: None,
+            auth: auth,
         })
     }
 
@@ -148,7 +150,9 @@ impl Client {
         self.routine_api.with_base_url(base_url.clone());
         self.model_api.with_base_url(base_url.clone());
         self.project_api.with_base_url(base_url.clone());
-        self.storage_api.with_base_url(base_url);
+        if let Some(storage_api) = &mut self.storage_api {
+            storage_api.with_base_url(base_url);
+        }
         self
     }
 
@@ -220,13 +224,21 @@ impl Client {
     }
 
     /// Returns a storage API handler.
-    pub fn storage(&self) -> &StorageApi {
-        &self.storage_api
+    pub async fn storage(&mut self) -> Result<&StorageApi, BQError> {
+        if self.storage_api.is_none() {
+            let write_client = StorageApi::new_write_client().await?;
+            self.storage_api = Some(StorageApi::new(write_client, Arc::clone(&self.auth)));
+        }
+        Ok(self.storage_api.as_ref().unwrap())
     }
 
     /// Returns a mutable storage API handler.
-    pub fn storage_mut(&mut self) -> &mut StorageApi {
-        &mut self.storage_api
+    pub async fn storage_mut(&mut self) -> Result<&mut StorageApi, BQError> {
+        if self.storage_api.is_none() {
+            let write_client = StorageApi::new_write_client().await?;
+            self.storage_api = Some(StorageApi::new(write_client, Arc::clone(&self.auth)));
+        }
+        Ok(self.storage_api.as_mut().unwrap())
     }
 }
 
